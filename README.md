@@ -15,7 +15,8 @@
 ![Image alt](https://github.com/Stanislaff-666/SQL_practice/blob/main/Marketing_Metrics_1_dashbord.jpg) 
 ![Image alt](https://github.com/Stanislaff-666/SQL_practice/blob/main/Marketing_Metrics_2_dashbord.jpg) 
 
-Для удобства прикрепляю ссылки на дашборды: 1)[Основные метрики](https://redash.public.karpov.courses/dashboards/2211-metrics)
-                                            2)[Экономика продукта](https://redash.public.karpov.courses/dashboards/2244-analytics-of-product-metrics)
-                                            3)[Маркетинговые метрики](https://redash.public.karpov.courses/dashboards/2273-marketing-metrics)
+Для удобства прикрепляю ссылки на дашборды (при нажатии на троеточие можно выбрать "view query" и посмотреть код запросы): 
+1)[Основные метрики](https://redash.public.karpov.courses/dashboards/2211-metrics)
+2)[Экономика продукта](https://redash.public.karpov.courses/dashboards/2244-analytics-of-product-metrics)
+3)[Маркетинговые метрики](https://redash.public.karpov.courses/dashboards/2273-marketing-metrics)
 
