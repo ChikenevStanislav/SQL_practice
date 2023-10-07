@@ -7,7 +7,8 @@
 
 В практической части этого урока (Экономика продукта) я чуть подробнее провел анализ наиболее важных метрик (ARPU (Average Revenue Per User), ARPPU (Average Revenue Per Paying User), AOV (Average Order Value) и т.д), которые позволяют с разных сторон оценить то, насколько хорошо работает продукт.
 
-
+![Image alt](https://github.com/Stanislaff-666/SQL_practice/blob/main/Analytics_Metrics_1_dashbord.png) 
+![Image alt](https://github.com/Stanislaff-666/SQL_practice/blob/main/Analytics_Metrics_2_dashbord.png) 
 
 В практической части этого урока (Маркетинговые метрики) я познакомимся с метриками CAC (Customer Acquisition Cost),  ROI (Return on Investment), Retention rate и т.д., которые помогают оценить эффективность маркетинга — то, насколько эффективно привлекаются пользователей в наше приложение.
 
