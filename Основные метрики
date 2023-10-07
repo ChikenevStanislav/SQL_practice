@@ -27,3 +27,4 @@ JOIN
  group by date) as n2
 on n1.date = n2.date
 order by date
+<img src="https://media.giphy.com/media/WUlplcMpOCEmTGBtBW/giphy.gif" width="30px">
