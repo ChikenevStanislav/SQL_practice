@@ -17,6 +17,6 @@
 
 Для удобства прикрепляю ссылки на дашборды (при наведение на график можно увидеть троеточие, наводим на него, далее выбираем "view query" и можем посмотреть код запроса): 
 [Основные метрики](https://redash.public.karpov.courses/dashboards/2211-metrics),
-Экономика продукта](https://redash.public.karpov.courses/dashboards/2244-analytics-of-product-metrics),
+[Экономика продукта](https://redash.public.karpov.courses/dashboards/2244-analytics-of-product-metrics),
 [Маркетинговые метрики](https://redash.public.karpov.courses/dashboards/2273-marketing-metrics)
 
