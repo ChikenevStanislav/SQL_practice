@@ -125,4 +125,132 @@ from(
 order by 2 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+Рассчитайте следующие показатели:
+1)Выручку, полученную в этот день.
+2)Выручку с заказов новых пользователей, полученную в этот день.
+3)Долю выручки с заказов новых пользователей в общей выручке, полученной за этот день.
+4)Долю выручки с заказов остальных пользователей в общей выручке, полученной за этот день.
+Колонки с показателями назовите соответственно revenue, new_users_revenue, new_users_revenue_share, old_users_revenue_share. Колонку с датами назовите date. 
+таблице: date, revenue, new_users_revenue, new_users_revenue_share, old_users_revenue_share
+
+select date,revenue,new_users_revenue, ROUND((new_users_revenue::decimal/revenue *100),2) as new_users_revenue_share, 
+       ROUND(100-(new_users_revenue::decimal/revenue *100),2) as old_users_revenue_share
+from(
+(select date, SUM(user_sum) as revenue
+from (
+      select date,order_id,SUM(price) as user_sum
+      from(
+            select creation_time::date as date,order_id, unnest(product_ids) as product_id
+            from orders
+            where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_1 JOIN products USING(product_id) 
+group by 1,2) as niva_2 
+group by date) as NIVA_ITOG_1
+
+JOIN
+
+(SELECT niva_3.date as date,sum(price) as new_users_revenue
+ FROM (SELECT user_id, min(time::date) as date
+       FROM   user_actions
+       GROUP BY 1
+       ORDER BY 1) as niva_3
+                           LEFT JOIN 
+(SELECT time::date as date,user_id,order_id
+FROM   user_actions
+WHERE  order_id not in (SELECT order_id FROM   user_actions WHERE  action = 'cancel_order')) as niva_4 ON niva_3.user_id = niva_4.user_id and niva_3.date = niva_4.date
+JOIN (select creation_time::date as date,order_id, unnest(product_ids) as product_id
+      from orders
+      where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_5 USING(order_id)
+JOIN products USING(product_id)
+GROUP BY 1) as NIVA_ITOG_2 USING(date)) as NIVA_ITOG_ITOGOV
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Для каждого товара, представленного в таблице products, за весь период времени в таблице orders рассчитайте следующие показатели:
+1)Суммарную выручку, полученную от продажи этого товара за весь период.
+2)Долю выручки от продажи этого товара в общей выручке, полученной за весь период.
+Товары, округлённая доля которых в выручке составляет менее 0.5%, объедините в общую группу с названием «ДРУГОЕ» (без кавычек), 
+просуммировав округлённые доли этих товаров.
+Поля в результирующей таблице: product_name, revenue, share_in_revenue
+
+WITH s1 AS (select SUM(user_sum) as SUM_revenue 
+            from(
+                select order_id,SUM(price) as user_sum
+                from(
+                     select creation_time::date as date,order_id, unnest(product_ids) as product_id
+                     from orders
+                     where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_1 JOIN products USING(product_id) 
+                group by 1) as niva_sum_revenue )
+
+select CASE WHEN share_in_revenue < 0.5 THEN 'ДРУГОЕ' ELSE name END AS product_name, SUM(revenue) as revenue,SUM(share_in_revenue) as share_in_revenue
+from(
+    select name, (count_product*price) as revenue, ROUND(count_product*price*100/(select * from s1),2) as share_in_revenue
+    from(
+        select name,product_id,price, COUNT(product_id) as count_product
+        from(
+            select order_id, unnest(product_ids) as product_id
+            from orders
+            where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_1 JOIN products USING(product_id) 
+            group by 1,2,3
+            order by 3 desc) as niva   
+order by 2 desc) as niva_itog
+group by 1
+order by 2 desc
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1)Выручку, полученную в этот день. revenue
+2)Затраты, образовавшиеся в этот день. costs
+3)Сумму НДС с продажи товаров в этот день. tax
+4)Валовую прибыль в этот день (выручка за вычетом затрат и НДС). gross_profit
+5)Суммарную выручку на текущий день. total_revenue
+6)Суммарные затраты на текущий день. total_costs
+7)Суммарный НДС на текущий день. total_tax
+8)Суммарную валовую прибыль на текущий день. total_gross_profit
+9)Долю валовой прибыли в выручке за этот день (долю п.4 в п.1). gross_profit_ratio
+10)Долю суммарной валовой прибыли в суммарной выручке на текущий день (долю п.8 в п.5). total_gross_profit_ratio
+Колонки с показателями назовите соответственно revenue, costs, tax, gross_profit, total_revenue, total_costs, total_tax, total_gross_profit, gross_profit_ratio, total_gross_profit_ratio
+
+SELECT date, revenue,costs,tax,gross_profit,total_revenue,total_costs,total_tax,total_gross_profit,
+       round(gross_profit / revenue * 100, 2) as gross_profit_ratio,
+       round(total_gross_profit / total_revenue * 100, 2) as total_gross_profit_ratio
+FROM (
+      SELECT date, revenue, costs, tax, revenue - costs - tax as gross_profit, 
+      sum(revenue) OVER (ORDER BY date) as total_revenue, 
+      sum(costs) OVER (ORDER BY date) as total_costs, sum(tax) OVER (ORDER BY date) as total_tax, 
+      sum(revenue - costs - tax) OVER (ORDER BY date) as total_gross_profit
+            FROM  (
+                    SELECT date, orders_packed orders_delivered, couriers_count, revenue,
+                    case 
+                        when date_part('month',date) = 8 then 120000.0 + 140 * coalesce(orders_packed, 0) + 150 * coalesce(orders_delivered, 0) + 400 * coalesce(couriers_count, 0)
+                        when date_part('month',date) = 9 then 150000.0 + 115 * coalesce(orders_packed, 0) + 150 * coalesce(orders_delivered, 0) + 500 * coalesce(couriers_count, 0) end as costs, tax
+                            FROM  (
+                                   SELECT creation_time::date as date,count(distinct order_id) as orders_packed, sum(price) as revenue, sum(tax) as tax
+                                        FROM (
+                                              SELECT order_id,creation_time,product_id,name,price,
+                                                     case when name in ('сахар', 'сухарики', 'сушки', 'семечки', 'масло льняное', 'виноград', 'масло оливковое', 
+                                                     'арбуз', 'батон', 'йогурт', 'сливки', 'гречка', 'овсянка', 'макароны', 'баранина', 'апельсины', 'бублики', 'хлеб', 
+                                                     'горох', 'сметана', 'рыба копченая', 'мука', 'шпроты', 'сосиски', 'свинина', 'рис', 'масло кунжутное', 'сгущенка', 
+                                                     'ананас', 'говядина', 'соль', 'рыба вяленая', 'масло подсолнечное', 'яблоки', 'груши', 'лепешка', 
+                                                     'молоко', 'курица', 'лаваш', 'вафли', 'мандарины') then round(price/110*10, 2)
+                                                                                                        else round(price/120*20, 2) end as tax
+                                FROM   (SELECT order_id, creation_time, unnest(product_ids) as product_id
+                                        FROM   orders
+                                        WHERE  order_id not in (SELECT order_id FROM user_actions WHERE  action = 'cancel_order')) t1
+                                                                            LEFT JOIN 
+                                    products using (product_id)) t2
+                                    GROUP BY date) t3
+                                                                            LEFT JOIN 
+                                    (SELECT time::date as date, count(distinct order_id) as orders_delivered
+                                     FROM   courier_actions
+                                     WHERE  order_id not in (SELECT order_id FROM   user_actions WHERE  action = 'cancel_order') and action = 'deliver_order'
+                                     GROUP BY date) t4 using (date)
+                                                                            LEFT JOIN 
+                                    (SELECT date, count(courier_id) as couriers_count
+                                     FROM (
+                                            SELECT time::date as date,courier_id, count(distinct order_id) as orders_delivered
+                                            FROM  courier_actions
+                                            WHERE  order_id not in (SELECT order_id FROM   user_actions WHERE  action = 'cancel_order') and action = 'deliver_order'
+                                            GROUP BY date, courier_id 
+                                            having count(distinct order_id) >= 5) t5
+                                    GROUP BY date) t6 using (date)) t7) t8
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
