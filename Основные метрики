@@ -6,7 +6,7 @@
 Колонки с показателями назовите соответственно new_users, new_couriers, total_users, total_couriers. 
 Колонку с датами назовите date. Проследите за тем, чтобы показатели были выражены целыми числами. 
 Результат должен быть отсортирован по возрастанию даты.
-Поля в результирующей таблице: date, new_users, new_couriers, total_users, total_couriers--!
+Поля в результирующей таблице: date, new_users, new_couriers, total_users, total_couriers
     
 select n1.date, new_users, new_couriers,(SUM(new_users) OVER(ORDER BY n1.date))::int total_users,(SUM(new_couriers) OVER(ORDER BY n2.date))::int total_couriers
 from (
@@ -27,4 +27,94 @@ JOIN
  group by date) as n2
 on n1.date = n2.date
 order by date
-<img src="https://media.giphy.com/media/WUlplcMpOCEmTGBtBW/giphy.gif" width="30px">
+ --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Рассчитайте следующие показатели:
+1)Прирост числа новых пользователей.
+2)Прирост числа новых курьеров.
+3)Прирост общего числа пользователей.
+4)Прирост общего числа курьеров.
+Показатели, рассчитанные на предыдущем шаге, также включите в результирующую таблицу.
+Колонки с новыми показателями назовите соответственно new_users_change, new_couriers_change, total_users_growth, total_couriers_growth. Колонку с датами назовите date.
+Все показатели прироста считайте в процентах относительно значений в предыдущий день. При расчёте показателей округляйте значения до двух знаков после запятой.
+Результирующая таблица должна быть отсортирована по возрастанию даты.
+Поля в результирующей таблице: 
+date, new_users, new_couriers, total_users, total_couriers, new_users_change, new_couriers_change, total_users_growth, total_couriers_growth*/
+select date,
+       new_users, 
+       new_couriers,
+       total_users,
+       total_couriers,
+       new_users_change ,
+       new_couriers_change,    
+       ROUND((total_users - LAG(total_users,1) over(order by date))*100::decimal/LAG(total_users,1) over(order by date),2) as total_users_growth,
+       ROUND((total_couriers - LAG(total_couriers,1) over(order by date))*100::decimal/LAG(total_couriers,1) over(order by date),2) as total_couriers_growth
+from (
+select n1.date,
+       new_users, 
+       new_couriers,
+       (SUM(new_users) OVER(ORDER BY n1.date))::int total_users,
+       (SUM(new_couriers) OVER(ORDER BY n2.date))::int total_couriers,
+       ROUND((new_users - LAG(new_users,1) over(order by n1.date))*100::decimal/LAG(new_users,1) over(order by n1.date),2) as new_users_change ,
+       ROUND((new_couriers - LAG(new_couriers,1) over(order by n2.date))*100::decimal/LAG(new_couriers,1) over(order by n2.date),2) as new_couriers_change
+from (
+      select date, count(user_id) as new_users
+            from (
+                    select min(time::date) as date,user_id
+                    from user_actions
+                    group by user_id
+                 ) as ua
+     group by date) as n1 
+JOIN 
+(select date, count(courier_id) as new_couriers
+    from (
+            select min(time::date) as date, courier_id
+            from courier_actions
+            group by courier_id
+         ) as ca
+ group by date) as n2
+on n1.date = n2.date
+order by date) as niva_1
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Для каждого дня, представленного в таблицах user_actions и courier_actions, рассчитайте следующие показатели:
+1)Число платящих пользователей.
+2)Число активных курьеров.
+3)Долю платящих пользователей в общем числе пользователей на текущий день.
+4)Долю активных курьеров в общем числе курьеров на текущий день.
+Колонки с показателями назовите соответственно paying_users, active_couriers, paying_users_share, active_couriers_share. Колонку с датами назовите date.
+Проследите за тем, чтобы абсолютные показатели были выражены целыми числами. Все показатели долей необходимо выразить в процентах. 
+При их расчёте округляйте значения до двух знаков после запятой.
+Результат должен быть отсортирован по возрастанию даты. 
+Поля в результирующей таблице: date, paying_users, active_couriers, paying_users_share, active_couriers_share
+
+select table_1.date, paying_users,active_couriers, ROUND(paying_users::decimal/ SUM(new_users) over (order by table_1.date) *100,2) as  paying_users_share,
+        ROUND(active_couriers::decimal/ SUM(new_couriers) over (order by table_1.date) *100,2) as  active_couriers_share
+    from 
+        (select niva_1.date as date, paying_users,active_couriers
+            from 
+            (select time::date as date, count(DISTINCT user_id) as paying_users
+            from user_actions
+            where order_id not in (select order_id from user_actions where action = 'cancel_order')
+            group by date) as niva_1 
+                        JOIN 
+    
+            (select time::date as date, COUNT(DISTINCT courier_id) as active_couriers
+            from courier_actions
+            where order_id NOT IN  (select order_id from user_actions where action = 'cancel_order') 
+            group by date) as niva_2 ON niva_1.date=niva_2.date) table_1
+                        JOIN 
+        (SELECT niva_3.date as date, new_users,new_couriers
+            FROM (SELECT date, count(user_id) as new_users
+                  FROM   (SELECT min(time::date) as date,user_id
+                         FROM   user_actions
+                         GROUP BY user_id) as ua
+                  GROUP BY date) as niva_3 
+                        JOIN 
+        (SELECT date, count(courier_id) as new_couriers
+            FROM   (SELECT min(time::date) as date,courier_id
+                    FROM   courier_actions
+                    GROUP BY courier_id) as ca
+        GROUP BY date) as nive_4 ON niva_3.date = nive_4.date
+        ORDER BY date) table_2 ON table_1.date=table_2.date
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
