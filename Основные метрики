@@ -118,3 +118,138 @@ select table_1.date, paying_users,active_couriers, ROUND(paying_users::decimal/ 
         GROUP BY date) as nive_4 ON niva_3.date = nive_4.date
         ORDER BY date) table_2 ON table_1.date=table_2.date
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Для каждого дня, представленного в таблице user_actions, рассчитайте следующие показатели:
+1)Долю пользователей, сделавших в этот день всего один заказ, в общем количестве платящих пользователей.
+2)Долю пользователей, сделавших в этот день несколько заказов, в общем количестве платящих пользователей.
+Колонки с показателями назовите соответственно single_order_users_share, several_orders_users_share. Колонку с датами назовите date. 
+Все показатели с долями необходимо выразить в процентах. При расчёте долей округляйте значения до двух знаков после запятой.
+Результат должен быть отсортирован по возрастанию даты.
+Поля в результирующей таблице: date, single_order_users_share, several_orders_users_share*/
+
+select date, ROUND(one_order::decimal/paying_users *100,2) as single_order_users_share,ROUND(more_1::decimal/paying_users *100,2) as several_orders_users_share
+from (
+select date, COUNT(user_id) as one_order
+from (
+ select time::date as date, user_id, COUNT(distinct order_id) 
+from user_actions
+where order_id not in (select order_id from user_actions where action = 'cancel_order')
+group by date,user_id
+HAVING COUNT(distinct order_id)=1) as s1
+group by date) as niva_1 JOIN
+
+(select date, COUNT(user_id) as more_1
+from (
+ select time::date as date, user_id, COUNT(distinct order_id) 
+from user_actions
+where order_id not in (select order_id from user_actions where action = 'cancel_order')
+group by date,user_id
+HAVING COUNT(distinct order_id)>1) as s2
+group by date) as niva_2 USING(date) JOIN
+
+(select date, paying_users
+from (
+select time::date as date, count(DISTINCT user_id) as paying_users
+from user_actions
+where order_id not in (select order_id from user_actions where action = 'cancel_order')
+group by date) as s3) as niva_3 USING(date)
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Для каждого дня, представленного в таблице user_actions, рассчитайте следующие показатели:
+1)Общее число заказов.
+2)Число первых заказов (заказов, сделанных пользователями впервые).
+3)Число заказов новых пользователей (заказов, сделанных пользователями в тот же день, когда они впервые воспользовались сервисом).
+4)Долю первых заказов в общем числе заказов (долю п.2 в п.1).
+5)Долю заказов новых пользователей в общем числе заказов (долю п.3 в п.1).
+Колонки с показателями назовите соответственно orders, first_orders, new_users_orders, first_orders_share, new_users_orders_share. Колонку с датами назовите date. Проследите за тем, чтобы во всех случаях количество заказов было выражено целым числом. Все показатели с долями необходимо выразить в процентах. При расчёте долей округляйте значения до двух знаков после запятой.
+Результат должен быть отсортирован по возрастанию даты.
+Поля в результирующей таблице: date, orders, first_orders, new_users_orders, first_orders_share, new_users_orders_share
+
+select date,orders,first_orders,new_users_orders, ROUND(first_orders::decimal/orders * 100,2) as first_orders_share,
+      ROUND(new_users_orders::decimal/orders *100,2) as new_users_orders_share
+from (
+select niva_1.date as date, orders, first_orders, new_users_orders
+from (
+      select time::date as date, COUNT(distinct order_id) as orders
+      from user_actions
+      where order_id NOT IN (select order_id from user_actions where action='cancel_order')
+      group by date
+      order by 1) niva_1 
+                           LEFT JOIN
+      (select date, COUNT(user_id) as first_orders
+      from (
+             select user_id, MIN(time::date) as date 
+             from user_actions
+             where order_id NOT IN (select order_id from user_actions where action='cancel_order')
+             group by 1
+             order by 1) as niva_2
+      group by date) as Niva_itog USING(date) 
+                                               LEFT JOIN 
+      (select niva_3.date, COUNT(order_id) as new_users_orders
+      from ( 
+             select user_id,MIN(time::date) as date 
+             from user_actions
+             group by 1
+             order by 1) as niva_3 
+                                                            LEFT JOIN
+      (select time::date as date, user_id, order_id
+      from user_actions
+      where order_id not in (select order_id from user_actions where action = 'cancel_order')
+      ) as niva_4 on niva_3.user_id = niva_4.user_id and niva_3.date = niva_4.date
+      group by 1 ) as Niva_itog_1 USING(date)) as ITOG_ITOGOV
+order by 1 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+На основе данных в таблицах user_actions, courier_actions и orders для каждого дня рассчитайте следующие показатели:
+1)Число платящих пользователей на одного активного курьера.
+2)Число заказов на одного активного курьера.
+Колонки с показателями назовите соответственно users_per_courier и orders_per_courier. Колонку с датами назовите date. 
+При расчёте показателей округляйте значения до двух знаков после запятой.
+Результирующая таблица должна быть отсортирована по возрастанию даты.
+Поля в результирующей таблице: date, users_per_courier, orders_per_courier*/
+ 
+select niva_1.date, ROUND(paying_users::decimal/active_couriers,2) as users_per_courier,
+ROUND(count_order::decimal/active_couriers,2) as orders_per_courier
+from (
+select time::date as date, count(distinct user_id) as paying_users
+from user_actions
+where order_id not in (select order_id from user_actions where action = 'cancel_order')
+group by date) as niva_1 
+                                JOIN
+(select time::date as date, COUNT(DISTINCT courier_id) as active_couriers
+from courier_actions
+where order_id NOT IN  (select order_id from user_actions where action = 'cancel_order') 
+group by date) as niva_2 USING(date)
+                                JOIN
+(select creation_time::date as date,COUNT(order_id) as count_order
+from orders 
+where order_id not in (select order_id from user_actions where action = 'cancel_order')
+group by date
+order by 1) as niva_3 USING(date)
+order by 1
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Для каждого часа рассчитайте следующие показатели:
+1)Число успешных (доставленных) заказов.
+2)Число отменённых заказов.
+3)Долю отменённых заказов в общем числе заказов (cancel rate).
+Колонки с показателями назовите соответственно successful_orders, canceled_orders, cancel_rate. Колонку с часом оформления заказа назовите hour.
+При расчёте доли отменённых заказов округляйте значения до трёх знаков после запятой.
+Результирующая таблица должна быть отсортирована по возрастанию колонки с часом оформления заказа.
+Поля в результирующей таблице: hour, successful_orders, canceled_orders, cancel_rate*/
+
+
+select hour::integer, successful_orders, canceled_orders,
+       ROUND(canceled_orders::decimal/(successful_orders+canceled_orders),3) as cancel_rate
+from(
+(select DATE_PART('hour',time) as hour,COUNT(order_id) as successful_orders
+from user_actions
+where order_id IN (select order_id from courier_actions where action='deliver_order')
+group by 1   
+order by 1) as niva_1 
+                        JOIN
+(select DATE_PART('hour',time) as hour,COUNT(DISTINCT order_id) as canceled_orders
+from user_actions
+where order_id IN (select order_id from user_actions where action='cancel_order') and  action = 'create_order'
+group by 1   
+order by 1) as niva_2 USING(hour)) as niva_itog
