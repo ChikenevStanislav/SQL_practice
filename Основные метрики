@@ -1,0 +1,29 @@
+Для каждого дня, представленного в таблицах user_actions и courier_actions, рассчитайте следующие показатели:
+1)Число новых пользователей.
+2)Число новых курьеров.
+3)Общее число пользователей на текущий день.
+4)Общее число курьеров на текущий день.
+Колонки с показателями назовите соответственно new_users, new_couriers, total_users, total_couriers. 
+Колонку с датами назовите date. Проследите за тем, чтобы показатели были выражены целыми числами. 
+Результат должен быть отсортирован по возрастанию даты.
+Поля в результирующей таблице: date, new_users, new_couriers, total_users, total_couriers--!
+    
+select n1.date, new_users, new_couriers,(SUM(new_users) OVER(ORDER BY n1.date))::int total_users,(SUM(new_couriers) OVER(ORDER BY n2.date))::int total_couriers
+from (
+      select date, count(user_id) as new_users
+            from (
+                    select min(time::date) as date,user_id
+                    from user_actions
+                    group by user_id
+                 ) as ua
+     group by date) as n1 
+JOIN 
+(select date, count(courier_id) as new_couriers
+    from (
+            select min(time::date) as date, courier_id
+            from courier_actions
+            group by courier_id
+         ) as ca
+ group by date) as n2
+on n1.date = n2.date
+order by date
