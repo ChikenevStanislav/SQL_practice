@@ -1,1 +1,128 @@
+Для каждого дня в таблице orders рассчитайте следующие показатели:
+1)Выручку, полученную в этот день.
+2)Суммарную выручку на текущий день.
+3)Прирост выручки, полученной в этот день, относительно значения выручки за предыдущий день.
+Колонки с показателями назовите соответственно revenue, total_revenue, revenue_change. Колонку с датами назовите date.
+Прирост выручки рассчитайте в процентах и округлите значения до двух знаков после запятой.
+Результат должен быть отсортирован по возрастанию даты.
+Поля в результирующей таблице: date, revenue, total_revenue, revenue_change
+
+select date,revenue,total_revenue, 
+       ROUND((revenue-LAG(revenue,1) over(order by date))/LAG(revenue,1) over()*100::decimal,3) as revenue_change
+from (
+select date, revenue, SUM(revenue) over (order by date) as total_revenue
+from (
+select date, SUM(user_sum) as revenue 
+from(
+     select date,order_id,SUM(price) as user_sum
+     from(
+          select creation_time::date as date,order_id, unnest(product_ids) as product_id
+          from orders
+          where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_1 JOIN products USING(product_id) 
+     group by 1,2) as niva_2
+group by date) as niva_3) as niva_4
+order by date
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1. ARPU (Average Revenue Per User) — средняя выручка на одного пользователя за определённый период.
+2. ARPPU (Average Revenue Per Paying User) — средняя выручка на одного платящего пользователя за определённый период.
+3. AOV (Average Order Value) — средний чек, или отношение выручки за определённый период к общему количеству заказов за это же время.
+
+Задание:
+Для каждого дня в таблицах orders и user_actions рассчитайте следующие показатели:
+1)Выручку на пользователя (ARPU) за текущий день.
+2)Выручку на платящего пользователя (ARPPU) за текущий день.
+3)Выручку с заказа, или средний чек (AOV) за текущий день.
+Колонки с показателями назовите соответственно arpu, arppu, aov. Колонку с датами назовите date.
+
+select date,ROUND(revenue/distinct_users,2) as ARPU,ROUND(revenue/pay_users,2) as ARPPU,ROUND(revenue/total_orders,2) as AOV
+from(
+select date, SUM(user_sum) as revenue 
+from(
+     select date,order_id,SUM(price) as user_sum
+     from(
+          select creation_time::date as date,order_id, unnest(product_ids) as product_id
+          from orders
+          where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_1 JOIN products USING(product_id) 
+     group by 1,2) as niva_2
+group by date) as niva_3 
+                                JOIN
+(select time::date as date, COUNT(DISTINCT user_id) as distinct_users from user_actions group by date) as niva_4 USING(date)
+                                JOIN
+(select time::date as date, COUNT(order_id) as total_orders from user_actions where action='create_order' and order_id NOT IN (select order_id from user_actions where action='cancel_order') group by date) as niva_5 USING(date)
+                                JOIN
+(select time::date as date, COUNT(DISTINCT user_id) as pay_users from user_actions where action='create_order' and order_id NOT IN (select order_id from user_actions where action='cancel_order') group by date) as niva_6 USING(date)
+order by 1 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Для каждого дня в таблицах orders и user_actions рассчитайте следующие показатели:
+1)Накопленную выручку на пользователя (Running ARPU).
+2)Накопленную выручку на платящего пользователя (Running ARPPU).
+3)Накопленную выручку с заказа, или средний чек (Running AOV).
+Колонки с показателями назовите соответственно running_arpu, running_arppu, running_aov. Колонку с датами назовите date. 
+Поля в результирующей таблице: date, running_arpu, running_arppu, running_aov
+
+select date, ROUND(summ_revenue::decimal/summ_distinct_users,2) as running_arpu , ROUND(summ_revenue::decimal/summ_paying_users,2) as running_arppu, ROUND(summ_revenue::decimal/summ_total_orders,2) as running_aov
+from (
+(select date,revenue, SUM(revenue) over (order by date) as summ_revenue
+from(
+select date, SUM(user_sum) as revenue 
+from(
+     select date,order_id,SUM(price) as user_sum
+     from(
+          select creation_time::date as date,order_id, unnest(product_ids) as product_id
+          from orders
+          where order_id NOT IN (select order_id from user_actions where action='cancel_order')) as niva_1 JOIN products USING(product_id) 
+     group by 1,2) as niva_2 group by date) as niva_3) as niva_10
+                                JOIN
+                                
+(select date, distinct_users, SUM(distinct_users) over (order by date) as summ_distinct_users
+from (
+(select date, COUNT(DISTINCT user_id) as distinct_users
+ from (SELECT user_id, min(time::date) as date FROM user_actions GROUP BY user_id order by 1) as new_users JOIN user_actions USING(user_id)  group by date)) as niva_4) as niva_itog_1 USING(date)
+                                JOIN
+                                
+(select date, total_orders, SUM(total_orders) over (order by date) as summ_total_orders
+from (
+(select time::date as date, COUNT(order_id) as total_orders 
+from user_actions 
+where action='create_order' and order_id NOT IN (select order_id from user_actions where action='cancel_order') group by date)) as niva_5) as niva_itog_2 USING(date)
+                                JOIN
+ (select distinct date, COUNT(user_id) OVER (ORDER BY date) summ_paying_users 
+ from (
+ select user_id, MIN(time::date) as date
+ from user_actions
+ where order_id NOT IN (select order_id from user_actions where action='cancel_order')
+ group by user_id order by 1) as niva_6) as niva_itog_3 USING(date)) as qq
+ order by 1
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Рассчитайте следующие показатели:
+1)Выручку на пользователя (ARPU).
+2)Выручку на платящего пользователя (ARPPU).
+3)Выручку на заказ (AOV).
+При расчётах учитывайте данные только за период с 26 августа 2022 года по 8 сентября 2022 года включительно
+Поля в результирующей таблице: weekday, weekday_number, arpu, arppu, aov
+ 
+
+select weekday, niva_3.weekday_number,ROUND(revenue/distinct_users,2) as ARPU,ROUND(revenue/pay_users,2) as ARPPU,ROUND(revenue/total_orders,2) as AOV
+from
+(select DISTINCT to_char(date,'Day') as weekday, EXTRACT(isodow from date) as weekday_number, SUM(user_sum) over (PARTITION by to_char(date, 'Day'))  as revenue 
+from(
+     select date,order_id,SUM(price) as user_sum
+     from(
+          select creation_time::date as date,order_id, unnest(product_ids) as product_id
+          from orders
+          where order_id NOT IN (select order_id from user_actions where action='cancel_order') and creation_time::date BETWEEN '2022-08-26' AND '2022-09-08') as niva_1 JOIN products USING(product_id) 
+     group by 1,2) as niva_2
+) as niva_3 
+                                JOIN
+(select to_char(time::date,'Day') as weekday, EXTRACT(isodow from time::date) as weekday_number, COUNT(DISTINCT user_id) as distinct_users from user_actions WHERE time::date BETWEEN '2022-08-26' AND '2022-09-08' group by 1,2) as niva_4 USING(weekday)
+                                JOIN
+(select to_char(time::date,'Day') as weekday, EXTRACT(isodow from time::date) as weekday_number, COUNT(order_id) as total_orders from user_actions where action='create_order' and order_id NOT IN (select order_id from user_actions where action='cancel_order') and time::date BETWEEN '2022-08-26' AND '2022-09-08' group by 1,2) as niva_5 USING(weekday)
+                                JOIN
+(select to_char(time::date,'Day') as weekday, EXTRACT(isodow from time::date) as weekday_number, COUNT(DISTINCT user_id) as pay_users from user_actions where action='create_order' and order_id NOT IN (select order_id from user_actions where action='cancel_order') and time::date BETWEEN '2022-08-26' AND '2022-09-08' group by 1,2) as niva_6 USING(weekday)
+order by 2 
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
