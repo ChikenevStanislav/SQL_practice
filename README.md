@@ -12,5 +12,6 @@
 
 В практической части этого урока (Маркетинговые метрики) я познакомимся с метриками CAC (Customer Acquisition Cost),  ROI (Return on Investment), Retention rate и т.д., которые помогают оценить эффективность маркетинга — то, насколько эффективно привлекаются пользователей в наше приложение.
 
-
+![Image alt](https://github.com/Stanislaff-666/SQL_practice/blob/main/Marketing_Metrics_1_dashbord.jpg) 
+![Image alt](https://github.com/Stanislaff-666/SQL_practice/blob/main/Marketing_Metrics_2_dashbord.jpg) 
 
