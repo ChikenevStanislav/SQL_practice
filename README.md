@@ -20,5 +20,5 @@
 [Экономика продукта](https://redash.public.karpov.courses/dashboards/2244-analytics-of-product-metrics),
 [Маркетинговые метрики](https://redash.public.karpov.courses/dashboards/2273-marketing-metrics)
 
-Для захода на платформу можно создать аккаунт, либо написать мне в Telegramm/VK/Mail (предоставлю логин и пароль) !</div>
+Для захода на платформу можно создать аккаунт, либо написать мне в Telegramm/VK/Mail (предоставлю логин и пароль)!</div>
 
